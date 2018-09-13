@@ -17,11 +17,7 @@ TODO - Right now at v0.0.0, the API is still forming as I read other libraries a
 For reference, though, here's how I envisioned the first step for the code as it's currently written:
 
 ```
-local spitblit = require('spitblit')
-local pins = {rs = 2, cs = 4, rst = 8, led = 1}
-local screen = spitblit.create(require('ili9225'), pins)
+local screen = require('ili9225'){rs = 2, cs = 8, rst = 4, led = 1}
 ```
-
-However, I'm realizing now that that's one level too complex for the design I have in mind, so I'm probably going to simplify with my next commit.
 
 See docs/ili9225.md for my influences.
