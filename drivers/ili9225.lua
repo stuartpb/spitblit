@@ -65,6 +65,14 @@ return function(pins)
     -- Turn on the backlight
     setpin(pins.led, HIGH)
 
+    -- Cycle the reset pin
+    setpin(pins.rst, gpio.HIGH)
+    tmr.delay(1)
+    setpin(pins.rst, gpio.LOW)
+    tmr.delay(10)
+    setpin(pins.rst, gpio.HIGH)
+    tmr.delay(50)
+
     -- Clear the power control registers (prep for power-on sequence)
     setreg(0x10, 0, 0)
     setreg(0x11, 0, 0)
@@ -171,15 +179,15 @@ return function(pins)
 
     -- Vertical Scroll Control (see datasheet pages 71-72, 8.2.23-8.2.24)
     -- (The numbering for these in section headings is messed up)
-    -- Set everything to 0 because we're not scrolling
-    setreg(0x31, 0x00, 0x00)
+    -- db: If we vertically scroll, do the whole screen
+    setreg(0x31, 0x00, 0xdb)
     setreg(0x32, 0x00, 0x00)
     setreg(0x33, 0x00, 0x00)
 
     -- Partial Screen Driving Position (see datasheet page 72, 8.2.25)
     -- db: Set partial driving to end at the last line
     -- (the datasheet says not to do this if you're not using it but whatever)
-    setreg(0x34, 0xdb, 0x00)
+    setreg(0x34, 0x00, 0xdb)
     setreg(0x35, 0x00, 0x00)
 
     -- Horizontal and Vertical RAM Address Position
