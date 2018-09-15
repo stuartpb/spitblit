@@ -125,7 +125,7 @@ return function(pins)
 
     -- Driver Output Control (see datasheet page 51, 8.2.4)
     -- 0: Normal polarity
-    -- 1 (SS): Reverse line order, for some reason
+    -- 1: SS (count X coordinates left-to-right)
     -- 1c: Drive all 220 lines of the screen
     setreg(0x01, 0x01, 0x1c)
 
@@ -253,10 +253,12 @@ return function(pins)
     local modelo = landscape and 8 or 0
     if x1 < x0 then
       x0, x1 = x1, x0
+    else
       modelo = modelo + 0x10
     end
     if y1 < y0 then
       y0, y1 = y1, y0
+    else
       modelo = modelo + 0x20
     end
 
