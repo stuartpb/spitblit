@@ -251,6 +251,9 @@ return function(pins)
     setreg(0x21, 0x00, v)
   end
   function screen:window(x0, x1, y0, y1, landscape)
+    if landscape == nil then
+      landscape = (x1 < x0) ~= (y1 < y0)
+    end
     local modelo = landscape and 8 or 0
     if x1 < x0 then
       x0, x1 = x1, x0
