@@ -125,7 +125,7 @@ return function(pins)
 
     -- Driver Output Control (see datasheet page 51, 8.2.4)
     -- 0: Normal polarity
-    -- 1: SS (count X coordinates left-to-right)
+    -- 1 (SS): Count X coordinates left-to-right
     -- 1c: Drive all 220 lines of the screen
     setreg(0x01, 0x01, 0x1c)
 
@@ -134,9 +134,10 @@ return function(pins)
     setreg(0x02, 0x01, 0x00)
 
     -- Entry Mode (see datasheet page 56, 8.2.6)
-    -- 10 (BGR): Swap Blue and Red channels (RGB, after SS line order reverse)
+    -- 10 (BGR): Read in RGB order
+    -- (in testing, 0 caused colors to read in BGR order, regardless of SS)
     -- 3: Increase addresses both horizontally and vertically
-    -- 0: Horizontal address orientation
+    -- 0: Portrait traversal (increment X addr to end before doing Y)
     setreg(0x03, 0x10, 0x30)
 
     -- Display Control 1 (see datasheet page 58, 8.2.7)
