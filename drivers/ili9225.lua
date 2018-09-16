@@ -7,36 +7,36 @@ License: MIT
 ---]]--
 
 return function(pins)
-  -- Register Select pin (aka Command/Data)
-  local rs = pins.rs
-  -- Chip Select pin
-  local cs = pins.cs
-
-  local setpin = gpio.write
-  local LOW = gpio.LOW
-  local HIGH = gpio.HIGH
-
-  local spisend = spi.send
-
   local function setreg(bytes)
+    -- Register Select pin (aka Command/Data)
+    local rs = pins.rs
+    -- Chip Select pin
+    local cs = pins.cs
+
+    local gpiowrite = gpio.write
+    local LOW = gpio.LOW
+    local HIGH = gpio.HIGH
+
+    local spisend = spi.send
+
     for i = 1, #bytes, 3 do
       -- Select index register
-      setpin(rs, LOW)
+      gpiowrite(rs, LOW)
       -- Start first transfer
-      setpin(cs, LOW)
+      gpiowrite(cs, LOW)
       -- Send register index selection
       spisend(1, 0, bytes[i])
       -- End first transfer
-      setpin(cs, HIGH)
+      gpiowrite(cs, HIGH)
 
       -- Select data register
-      setpin(rs, HIGH)
+      gpiowrite(rs, HIGH)
       -- Start second transfer
-      setpin(cs, LOW)
+      gpiowrite(cs, LOW)
       -- Send data bytes
       spisend(1, bytes[i + 1], bytes[i + 2])
       -- End second transfer
-      setpin(cs, HIGH)
+      gpiowrite(cs, HIGH)
     end
   end
 
@@ -59,20 +59,20 @@ return function(pins)
       2)
 
     -- Set our pins to output
-    gpio.mode(rs, gpio.OUTPUT)
-    gpio.mode(cs, gpio.OUTPUT)
+    gpio.mode(pins.rs, gpio.OUTPUT)
+    gpio.mode(pins.cs, gpio.OUTPUT)
     gpio.mode(pins.rst, gpio.OUTPUT)
     gpio.mode(pins.led, gpio.OUTPUT)
 
     -- Turn on the backlight
-    setpin(pins.led, HIGH)
+    gpio.write(pins.led, gpio.HIGH)
 
     -- Cycle the reset pin
-    setpin(pins.rst, gpio.HIGH)
+    gpio.write(pins.rst, gpio.HIGH)
     tmr.delay(1)
-    setpin(pins.rst, gpio.LOW)
+    gpio.write(pins.rst, gpio.LOW)
     tmr.delay(10)
-    setpin(pins.rst, gpio.HIGH)
+    gpio.write(pins.rst, gpio.HIGH)
     tmr.delay(50)
 
     -- Clear the power control registers (prep for power-on sequence)
@@ -236,22 +236,22 @@ return function(pins)
   end
   function screen:fill(...)
     -- Select index register
-    setpin(rs, LOW)
+    gpio.write(pins.rs, gpio.LOW)
     -- Start first transfer
-    setpin(cs, LOW)
+    gpio.write(pins.cs, gpio.LOW)
     -- Send register index selection
-    spisend(1, 0, 0x22)
+    spi.send(1, 0, 0x22)
     -- End first transfer
-    setpin(cs, HIGH)
+    gpio.write(pins.cs, gpio.HIGH)
 
     -- Select data register
-    setpin(rs, HIGH)
+    gpio.write(pins.rs, gpio.HIGH)
     -- Start second transfer
-    setpin(cs, LOW)
+    gpio.write(pins.cs, gpio.LOW)
     -- Send data bytes
-    spisend(1, ...)
+    spi.send(1, ...)
     -- End second transfer
-    setpin(cs, HIGH)
+    gpio.write(pins.cs, gpio.HIGH)
   end
   function screen:jump(h, v)
     setreg{
