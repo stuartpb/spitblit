@@ -41,9 +41,11 @@ return function(screen)
     end
   end
 
-  function screen:init()
+  function screen:initspi(opts)
+    opts = opts or {}
+
     -- Use full frequency
-    node.setcpufreq(node.CPU160MHZ)
+    node.setcpufreq(opts.freq or node.CPU160MHZ)
 
     -- Set up SPI:
     spi.setup(
@@ -56,8 +58,10 @@ return function(screen)
       spi.DATABITS_8,
       -- Use a clock divider of 2
       -- (40MHz, only ~100 times faster than the maximum on the datasheet :P)
-      2)
+      opts.divider or 2)
+  end
 
+  function screen:initgpio()
     -- Set our pins to output
     -- Register Select pin (aka Command/Data)
     gpio.mode(self.pins.rs, gpio.OUTPUT)
@@ -67,9 +71,22 @@ return function(screen)
     gpio.mode(self.pins.rst, gpio.OUTPUT)
     -- LED backlight pin
     gpio.mode(self.pins.led, gpio.OUTPUT)
+  end
 
-    -- Turn on the backlight
-    gpio.write(self.pins.led, gpio.HIGH)
+  function screen:led(setting)
+    if setting == 0 or setting == false or setting == gpio.LOW then
+      setting = gpio.LOW
+    else
+      setting = gpio.HIGH
+    end
+
+    gpio.write(self.pins.led, setting)
+  end
+
+  function screen:init()
+    self:initspi()
+    self:initgpio()
+    self:led()
 
     -- Cycle the reset pin
     gpio.write(self.pins.rst, gpio.HIGH)
