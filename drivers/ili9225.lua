@@ -6,18 +6,19 @@ Author:  Stuart P. Bentley <s@stuartpb.com>
 License: MIT
 ---]]--
 
-return function(pins)
-  local function setreg(bytes)
-    -- Register Select pin (aka Command/Data)
-    local rs = pins.rs
-    -- Chip Select pin
-    local cs = pins.cs
+return function(screen)
+  screen = screen or {}
+  screen.pins = screen.pins or {}
+  screen.pins.rs = screen.pins.rs or 2 -- GPIO4
+  screen.pins.cs = screen.pins.cs or 8 -- GPIO15
+  screen.pins.rst = screen.pins.rst or 4 -- GPIO2
+  screen.pins.led = screen.pins.led or 1 -- GPIO5
 
+  local function setreg(rs, cs, bytes)
+    local spisend = spi.send
     local gpiowrite = gpio.write
     local LOW = gpio.LOW
     local HIGH = gpio.HIGH
-
-    local spisend = spi.send
 
     for i = 1, #bytes, 3 do
       -- Select index register
@@ -40,7 +41,6 @@ return function(pins)
     end
   end
 
-  local screen = {}
   function screen:init()
     -- Use full frequency
     node.setcpufreq(node.CPU160MHZ)
@@ -59,37 +59,41 @@ return function(pins)
       2)
 
     -- Set our pins to output
-    gpio.mode(pins.rs, gpio.OUTPUT)
-    gpio.mode(pins.cs, gpio.OUTPUT)
-    gpio.mode(pins.rst, gpio.OUTPUT)
-    gpio.mode(pins.led, gpio.OUTPUT)
+    -- Register Select pin (aka Command/Data)
+    gpio.mode(self.pins.rs, gpio.OUTPUT)
+    -- Chip Select pin
+    gpio.mode(self.pins.cs, gpio.OUTPUT)
+    -- Reset pin
+    gpio.mode(self.pins.rst, gpio.OUTPUT)
+    -- LED backlight pin
+    gpio.mode(self.pins.led, gpio.OUTPUT)
 
     -- Turn on the backlight
-    gpio.write(pins.led, gpio.HIGH)
+    gpio.write(self.pins.led, gpio.HIGH)
 
     -- Cycle the reset pin
-    gpio.write(pins.rst, gpio.HIGH)
+    gpio.write(self.pins.rst, gpio.HIGH)
     tmr.delay(1)
-    gpio.write(pins.rst, gpio.LOW)
+    gpio.write(self.pins.rst, gpio.LOW)
     tmr.delay(10)
-    gpio.write(pins.rst, gpio.HIGH)
+    gpio.write(self.pins.rst, gpio.HIGH)
     tmr.delay(50)
 
     -- Clear the power control registers (prep for power-on sequence)
-    setreg{
+    setreg(self.pins.rs, self.pins.cs, {
       0x10, 0, 0,
       0x11, 0, 0,
       0x12, 0, 0,
       0x13, 0, 0,
       0x14, 0, 0
-    }
+    })
 
     -- Give the power control registers a little time to set
     tmr.delay(40)
 
     -- Power-on sequence (see datasheet page 104, 13.4, Figure 42)
 
-    setreg{
+    setreg(self.pins.rs, self.pins.cs, {
     -- Power Control 2 (see datasheet page 64, 8.2.13)
     -- 00: Leave boost circuits off
     -- 1: Generate unamplified voltage
@@ -113,7 +117,7 @@ return function(pins)
     -- Power Control 1 (see datasheet page 63, 8.2.12)
     -- 8: Set driving capability to Medium Fast 1
       0x10, 0x08, 0x00
-    }
+    })
     -- Give these settings time to propagate
     tmr.delay(10)
 
@@ -121,14 +125,14 @@ return function(pins)
     -- 10 (APON): Automatically start the boost circuits
     -- 3: Generate amplified voltage
     -- b: Set boost converter voltage (VCI1) to 2.76 volts
-    setreg{0x11, 0x10, 0x3b}
+    setreg(self.pins.rs, self.pins.cs, {0x11, 0x10, 0x3b})
 
     -- Wait for boost circuits to do their thing
     tmr.delay(50)
 
     -- Rest of registers
 
-    setreg{
+    setreg(self.pins.rs, self.pins.cs, {
     -- Driver Output Control (see datasheet page 51, 8.2.4)
     -- 0: Normal polarity
     -- 1 (SS): Count X coordinates left-to-right
@@ -227,37 +231,37 @@ return function(pins)
     -- Display Control 1 again:
     -- 12: Ready the display to operate, but don't turn on
       0x07, 0x00, 0x12
-    }
+    })
     -- Wait for the display operation to ready
     tmr.delay(50)
     -- 10: Enable tearing mitigation (frame sync)
     -- 17: Turn display on (and invert grayscale?)
-    setreg{0x07, 0x10, 0x17}
+    setreg(self.pins.rs, self.pins.cs, {0x07, 0x10, 0x17})
   end
   function screen:fill(...)
     -- Select index register
-    gpio.write(pins.rs, gpio.LOW)
+    gpio.write(self.pins.rs, gpio.LOW)
     -- Start first transfer
-    gpio.write(pins.cs, gpio.LOW)
+    gpio.write(self.pins.cs, gpio.LOW)
     -- Send register index selection
     spi.send(1, 0, 0x22)
     -- End first transfer
-    gpio.write(pins.cs, gpio.HIGH)
+    gpio.write(self.pins.cs, gpio.HIGH)
 
     -- Select data register
-    gpio.write(pins.rs, gpio.HIGH)
+    gpio.write(self.pins.rs, gpio.HIGH)
     -- Start second transfer
-    gpio.write(pins.cs, gpio.LOW)
+    gpio.write(self.pins.cs, gpio.LOW)
     -- Send data bytes
     spi.send(1, ...)
     -- End second transfer
-    gpio.write(pins.cs, gpio.HIGH)
+    gpio.write(self.pins.cs, gpio.HIGH)
   end
   function screen:jump(h, v)
-    setreg{
+    setreg(self.pins.rs, self.pins.cs, {
       0x20, 0x00, h,
       0x21, 0x00, v
-    }
+    })
   end
   function screen:window(x0, x1, y0, y1, landscape)
     if landscape == nil then
@@ -275,7 +279,7 @@ return function(pins)
       modelo = modelo + 0x20
     end
 
-    setreg{
+    setreg(self.pins.rs, self.pins.cs, {
     -- Set window extents
       0x36, 0x00, x1,
       0x37, 0x00, x0,
@@ -284,7 +288,7 @@ return function(pins)
 
     -- Set entry mode
       0x03, 0x10, modelo
-    }
+    })
   end
   return screen
 end
