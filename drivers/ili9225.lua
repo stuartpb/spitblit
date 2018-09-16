@@ -20,25 +20,23 @@ return function(screen)
     local LOW = gpio.LOW
     local HIGH = gpio.HIGH
 
+    -- Select chip
+    gpiowrite(cs, LOW)
+
     for i = 1, #bytes, 3 do
       -- Select index register
       gpiowrite(rs, LOW)
-      -- Start first transfer
-      gpiowrite(cs, LOW)
       -- Send register index selection
       spisend(1, 0, bytes[i])
-      -- End first transfer
-      gpiowrite(cs, HIGH)
 
       -- Select data register
       gpiowrite(rs, HIGH)
-      -- Start second transfer
-      gpiowrite(cs, LOW)
       -- Send data bytes
       spisend(1, bytes[i + 1], bytes[i + 2])
-      -- End second transfer
-      gpiowrite(cs, HIGH)
     end
+
+    -- Deselect chip
+    gpiowrite(cs, HIGH)
   end
 
   function screen:initspi(opts)
@@ -258,20 +256,16 @@ return function(screen)
   function screen:fill(...)
     -- Select index register
     gpio.write(self.pins.rs, gpio.LOW)
-    -- Start first transfer
+    -- Select chip
     gpio.write(self.pins.cs, gpio.LOW)
     -- Send register index selection
     spi.send(1, 0, 0x22)
-    -- End first transfer
-    gpio.write(self.pins.cs, gpio.HIGH)
 
     -- Select data register
     gpio.write(self.pins.rs, gpio.HIGH)
-    -- Start second transfer
-    gpio.write(self.pins.cs, gpio.LOW)
     -- Send data bytes
     spi.send(1, ...)
-    -- End second transfer
+    -- Deselect chip
     gpio.write(self.pins.cs, gpio.HIGH)
   end
   function screen:jump(h, v)
