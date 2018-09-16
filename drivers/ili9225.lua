@@ -14,31 +14,6 @@ return function(screen)
   screen.pins.rst = screen.pins.rst or 4 -- GPIO2
   screen.pins.led = screen.pins.led or 1 -- GPIO5
 
-  local function setreg(rs, cs, bytes)
-    local spisend = spi.send
-    local gpiowrite = gpio.write
-    local LOW = gpio.LOW
-    local HIGH = gpio.HIGH
-
-    -- Select chip
-    gpiowrite(cs, LOW)
-
-    for i = 1, #bytes, 3 do
-      -- Select index register
-      gpiowrite(rs, LOW)
-      -- Send register index selection
-      spisend(1, 0, bytes[i])
-
-      -- Select data register
-      gpiowrite(rs, HIGH)
-      -- Send data bytes
-      spisend(1, bytes[i + 1], bytes[i + 2])
-    end
-
-    -- Deselect chip
-    gpiowrite(cs, HIGH)
-  end
-
   function screen:initspi(opts)
     opts = opts or {}
 
@@ -71,6 +46,33 @@ return function(screen)
     gpio.mode(self.pins.led, gpio.OUTPUT)
   end
 
+  function screen:setreg(bytes)
+    local spisend = spi.send
+    local gpiowrite = gpio.write
+    local LOW = gpio.LOW
+    local HIGH = gpio.HIGH
+
+    local rs = self.pins.rs
+
+    -- Select chip
+    gpiowrite(self.pins.cs, LOW)
+
+    for i = 1, #bytes, 3 do
+      -- Select index register
+      gpiowrite(rs, LOW)
+      -- Send register index selection
+      spisend(1, 0, bytes[i])
+
+      -- Select data register
+      gpiowrite(rs, HIGH)
+      -- Send data bytes
+      spisend(1, bytes[i + 1], bytes[i + 2])
+    end
+
+    -- Deselect chip
+    gpiowrite(self.pins.cs, HIGH)
+  end
+
   function screen:led(setting)
     if setting == 0 or setting == false or setting == gpio.LOW then
       setting = gpio.LOW
@@ -95,20 +97,20 @@ return function(screen)
     tmr.delay(50)
 
     -- Clear the power control registers (prep for power-on sequence)
-    setreg(self.pins.rs, self.pins.cs, {
+    self:setreg{
       0x10, 0, 0,
       0x11, 0, 0,
       0x12, 0, 0,
       0x13, 0, 0,
       0x14, 0, 0
-    })
+    }
 
     -- Give the power control registers a little time to set
     tmr.delay(40)
 
     -- Power-on sequence (see datasheet page 104, 13.4, Figure 42)
 
-    setreg(self.pins.rs, self.pins.cs, {
+    self:setreg{
     -- Power Control 2 (see datasheet page 64, 8.2.13)
     -- 00: Leave boost circuits off
     -- 1: Generate unamplified voltage
@@ -132,7 +134,7 @@ return function(screen)
     -- Power Control 1 (see datasheet page 63, 8.2.12)
     -- 8: Set driving capability to Medium Fast 1
       0x10, 0x08, 0x00
-    })
+    }
     -- Give these settings time to propagate
     tmr.delay(10)
 
@@ -140,14 +142,14 @@ return function(screen)
     -- 10 (APON): Automatically start the boost circuits
     -- 3: Generate amplified voltage
     -- b: Set boost converter voltage (VCI1) to 2.76 volts
-    setreg(self.pins.rs, self.pins.cs, {0x11, 0x10, 0x3b})
+    self:setreg{0x11, 0x10, 0x3b}
 
     -- Wait for boost circuits to do their thing
     tmr.delay(50)
 
     -- Rest of registers
 
-    setreg(self.pins.rs, self.pins.cs, {
+    self:setreg{
     -- Driver Output Control (see datasheet page 51, 8.2.4)
     -- 0: Normal polarity
     -- 1 (SS): Count X coordinates left-to-right
@@ -246,12 +248,12 @@ return function(screen)
     -- Display Control 1 again:
     -- 12: Ready the display to operate, but don't turn on
       0x07, 0x00, 0x12
-    })
+    }
     -- Wait for the display operation to ready
     tmr.delay(50)
     -- 10: Enable tearing mitigation (frame sync)
     -- 17: Turn display on (and invert grayscale?)
-    setreg(self.pins.rs, self.pins.cs, {0x07, 0x10, 0x17})
+    self:setreg{0x07, 0x10, 0x17}
   end
   function screen:fill(...)
     -- Select index register
@@ -269,10 +271,10 @@ return function(screen)
     gpio.write(self.pins.cs, gpio.HIGH)
   end
   function screen:jump(h, v)
-    setreg(self.pins.rs, self.pins.cs, {
+    self:setreg{
       0x20, 0x00, h,
       0x21, 0x00, v
-    })
+    }
   end
   function screen:window(x0, x1, y0, y1, landscape)
     if landscape == nil then
@@ -290,7 +292,7 @@ return function(screen)
       modelo = modelo + 0x20
     end
 
-    setreg(self.pins.rs, self.pins.cs, {
+    self:setreg{
     -- Set window extents
       0x36, 0x00, x1,
       0x37, 0x00, x0,
@@ -299,7 +301,7 @@ return function(screen)
 
     -- Set entry mode
       0x03, 0x10, modelo
-    })
+    }
   end
   return screen
 end
