@@ -1,7 +1,7 @@
 --[[---
 File:    drivers/ili9225.lua
 From:    https://github.com/stuartpb/spitblit
-Version: 0.0.0
+Version: 0.1.0
 Author:  Stuart P. Bentley <s@stuartpb.com>
 License: MIT
 ---]]--
@@ -14,11 +14,21 @@ return function(screen)
   screen.pins.rst = screen.pins.rst or 4 -- GPIO2
   screen.pins.led = screen.pins.led or 1 -- GPIO5
 
+  if screen.cpufreq == nil then
+    screen.cpufreq = node.CPU160MHZ
+  end
+
+  -- fixed specifications
+  screen.width = 176
+  screen.height = 220
+
+  screen.bpc = 'r5g6b5'
+
+  -- methods
   function screen:initspi(opts)
-    opts = opts or {}
 
     -- Use full frequency
-    node.setcpufreq(opts.freq or node.CPU160MHZ)
+    if self.cpufreq then node.setcpufreq(self.cpufreq) end
 
     -- Set up SPI:
     spi.setup(
@@ -31,11 +41,12 @@ return function(screen)
       spi.DATABITS_8,
       -- Use a clock divider of 2
       -- (40MHz, only ~100 times faster than the maximum on the datasheet :P)
-      opts.divider or 2)
+      self.clock_div or 2)
   end
 
   function screen:initgpio()
     -- Set our pins to output
+
     -- Register Select pin (aka Command/Data)
     gpio.mode(self.pins.rs, gpio.OUTPUT)
     -- Chip Select pin
@@ -73,7 +84,7 @@ return function(screen)
     gpiowrite(self.pins.cs, HIGH)
   end
 
-  function screen:led(setting)
+  function screen:light(setting)
     if setting == 0 or setting == false or setting == gpio.LOW then
       setting = gpio.LOW
     else
@@ -86,7 +97,7 @@ return function(screen)
   function screen:init()
     self:initspi()
     self:initgpio()
-    self:led()
+    self:light(1)
 
     -- Cycle the reset pin
     gpio.write(self.pins.rst, gpio.HIGH)
@@ -255,6 +266,7 @@ return function(screen)
     -- 17: Turn display on (and invert grayscale?)
     self:setreg{0x07, 0x10, 0x17}
   end
+
   function screen:fill(...)
     -- Select index register
     gpio.write(self.pins.rs, gpio.LOW)
@@ -270,17 +282,22 @@ return function(screen)
     -- Deselect chip
     gpio.write(self.pins.cs, gpio.HIGH)
   end
-  function screen:jump(h, v)
+
+  function screen:jump(x, y)
     self:setreg{
-      0x20, 0x00, h,
-      0x21, 0x00, v
+      0x20, 0x00, x,
+      0x21, 0x00, y
     }
   end
-  function screen:window(x0, x1, y0, y1, landscape)
-    if landscape == nil then
-      landscape = (x1 < x0) ~= (y1 < y0)
+
+  function screen:window(x0, x1, y0, y1, vertical)
+
+    if vertical == nil then
+      vertical = (x1 < x0) ~= (y1 < y0)
     end
-    local modelo = landscape and 8 or 0
+
+    local modelo = vertical and 8 or 0
+
     if x1 < x0 then
       x0, x1 = x1, x0
     else
@@ -303,5 +320,6 @@ return function(screen)
       0x03, 0x10, modelo
     }
   end
+
   return screen
 end
